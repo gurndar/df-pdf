@@ -1,30 +1,48 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>가벼운 PDF 리더</title>
+  <title>Feather PDF</title>
+  <meta name="description" content="A lightweight PDF reader that opens huge PDFs on low-memory Chromebooks without freezing.">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="toolbar">
+    <button id="toc-btn" class="icon-btn" type="button" data-i18n-title="contents" hidden>☰</button>
     <label class="open-btn">
-      PDF 열기
+      <span data-i18n="open">Open PDF</span>
       <input id="file" type="file" accept="application/pdf,.pdf" hidden>
     </label>
     <span id="name" class="name"></span>
-    <form id="goto" class="goto" hidden>
-      <input id="page" type="number" min="1" inputmode="numeric" aria-label="페이지">
-      <span>/ <span id="total">0</span></span>
-    </form>
-    <span id="stats" class="stats"></span>
-  </header>
-  <main id="viewer" class="viewer" tabindex="0">
-    <div class="empty">
-      <p>PDF 파일을 여기로 끌어다 놓거나 <b>PDF 열기</b>를 누르세요.</p>
-      <p class="hint">파일을 통째로 메모리에 올리지 않아서, 큰 교과서도 4GB 크롬북에서 열 수 있어요.</p>
+    <div id="controls" class="controls" hidden>
+      <button id="zoom-out" class="icon-btn" type="button" data-i18n-title="zoomOut">−</button>
+      <button id="zoom-reset" class="zoom-label" type="button" data-i18n-title="zoomReset">100%</button>
+      <button id="zoom-in" class="icon-btn" type="button" data-i18n-title="zoomIn">+</button>
+      <form id="goto" class="goto">
+        <input id="page" type="number" min="1" inputmode="numeric" data-i18n-title="page">
+        <span>/ <span id="total">0</span></span>
+      </form>
     </div>
-  </main>
+    <span id="stats" class="stats" hidden></span>
+  </header>
+  <div class="body">
+    <nav id="toc" class="toc" hidden>
+      <ul id="toc-list"></ul>
+      <p id="toc-empty" class="toc-empty" data-i18n="noOutline" hidden></p>
+    </nav>
+    <main id="viewer" class="viewer" tabindex="0">
+      <div class="empty">
+        <p data-i18n="emptyTitle"></p>
+        <p class="hint" data-i18n="emptyHint"></p>
+        <p class="hint" data-i18n="installHint"></p>
+      </div>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" hidden></div>
   <script type="module" src="main.js"></script>
 </body>
 </html>

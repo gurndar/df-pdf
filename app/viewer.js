@@ -10,6 +10,9 @@ import { RenderingCancelledException } from "./vendor/pdf.min.mjs";
 const GAP = 12;
 const OVERSCAN = 1;
 const SCROLL_IDLE_MS = 120;
+const MAX_FIT_WIDTH = 1000;
+export const MIN_ZOOM = 0.5;
+export const MAX_ZOOM = 3;
 export const MAX_CANVAS_PIXELS = 4 * 1024 * 1024; // 16MB of RGBA per page
 
 export class Viewer {
@@ -23,6 +26,7 @@ export class Viewer {
     this.rendering = null; // promise of the running pump, if any
     this.releasedSinceCleanup = 0;
     this.currentPage = 1;
+    this.zoom = 1;
 
     this.spacer = document.createElement("div");
     this.spacer.className = "spacer";
@@ -43,15 +47,37 @@ export class Viewer {
     this.resizeObserver.observe(this.container);
   }
 
+  // Zoom 1 fits the page to the window width (capped at MAX_FIT_WIDTH).
+  setZoom(zoom) {
+    zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.round(zoom * 100) / 100));
+    if (zoom === this.zoom) return;
+    this.zoom = zoom;
+    this.layout();
+  }
+
   layout() {
-    const width = Math.min(this.container.clientWidth - 2 * GAP, 1000);
-    if (width <= 0 || width === this.slotW) return;
-    const page = this.currentPage;
+    const viewW = this.container.clientWidth;
+    const fit = Math.min(viewW - 2 * GAP, MAX_FIT_WIDTH);
+    if (fit <= 0) return;
+    const width = Math.round(fit * this.zoom);
+    const spacerW = Math.max(viewW, width + 2 * GAP);
+    if (width === this.slotW && spacerW === this.spacerW) return;
+
+    // Keep the same spot of the document in view across the relayout.
+    const c = this.container;
+    const pos = this.slotH ? c.scrollTop / (this.slotH + GAP) : 0;
+    const xFrac = this.spacerW ? (c.scrollLeft + c.clientWidth / 2) / this.spacerW : 0.5;
+
+    for (const n of [...this.slots.keys()]) this.release(n);
     this.slotW = width;
     this.slotH = Math.round(width * this.pageRatio);
+    this.spacerW = spacerW;
+    this.slotLeft = Math.round((spacerW - width) / 2);
+    this.spacer.style.width = `${spacerW}px`;
     this.spacer.style.height = `${this.doc.numPages * (this.slotH + GAP) + GAP}px`;
-    for (const n of [...this.slots.keys()]) this.release(n);
-    this.goto(page);
+    c.scrollTop = pos * (this.slotH + GAP);
+    c.scrollLeft = xFrac * spacerW - c.clientWidth / 2;
+    this.update();
   }
 
   pageTop(n) {
@@ -112,6 +138,7 @@ export class Viewer {
     const el = document.createElement("div");
     el.className = "page";
     el.style.top = `${this.pageTop(n)}px`;
+    el.style.left = `${this.slotLeft}px`;
     el.style.width = `${this.slotW}px`;
     el.style.height = `${this.slotH}px`;
     el.dataset.page = n;

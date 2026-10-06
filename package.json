@@ -1,13 +1,15 @@
 {
-  "name": "chromebook-pdf-reader",
+  "name": "feather-pdf",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Low-memory PDF reader for 4GB Chromebooks",
+  "description": "Lightweight PDF reader that opens huge PDFs on low-memory Chromebooks",
   "scripts": {
     "postinstall": "node scripts/copy-vendor.mjs",
     "start": "node scripts/serve.mjs",
-    "bench": "node bench/browser-bench.mjs"
+    "bench": "node bench/browser-bench.mjs",
+    "test": "node bench/e2e.mjs",
+    "icons": "node scripts/render-icons.mjs"
   },
   "dependencies": {
     "pdfjs-dist": "^4.10.38"
