@@ -1,56 +1,73 @@
-# Chromebook PDF Reader
+# Feather PDF
 
-4GB RAM 크롬북에서도 수백 MB짜리 PDF(예: 1000쪽 넘는 디지털 교과서)를 멈추지 않고 여는 가벼운 PDF 리더.
+A lightweight PDF reader that opens **huge PDFs on low-memory Chromebooks without freezing**,
+like a 1,000-page, 800MB textbook on a 4GB Chromebook.
 
-**바로 쓰기: https://gurndar.github.io/chromebookPDFReader/** — 설치 없이 크롬에서 열고 PDF를 고르면 됨.
-PDF는 기기 안에서만 읽고 어디에도 업로드하지 않음.
+**Use it now: https://gurndar.github.io/chromebookPDFReader/**. Nothing to install, and it works on
+school-managed Chromebooks. Your PDF is read from your own disk and never uploaded anywhere.
 
-## 왜 필요한가
-Gallery 앱과 Chrome 내장 뷰어는 큰 PDF를 열 때 파일 전체를 메모리에 올림.
-800MB 파일이면 1GB 이상을 한꺼번에 쓰게 되고, 4GB 크롬북은 그 자리에서 멈춤.
-→ [experiments/01-load-memory](experiments/01-load-memory/README.md)
+## Why
+ChromeOS's Gallery app and Chrome's built-in viewer load the whole PDF into memory. With an 800MB
+file that means 1GB+ at once, and a 4GB Chromebook locks up hard enough to need a forced shutdown.
+Feather reads only the parts of the file it needs, so memory stays at a few hundred MB no matter how
+big the PDF is. See [experiments/01-load-memory](experiments/01-load-memory/README.md).
 
-## 어떻게 가볍게 만드나
-- **범위 읽기**: `File.slice()`로 pdf.js가 요청한 64KB 조각만 디스크에서 읽음 (`app/file-range-transport.js`)
-- **가상 스크롤**: 화면에 보이는 페이지 ±1쪽만 DOM·캔버스를 가짐 (`app/viewer.js`)
-- **렌더링 제한**: 한 번에 한 페이지만 그리고, 스크롤 중에는 그리지 않음
-- **캔버스 상한**: 페이지당 최대 4M 픽셀(16MB), 화면을 벗어나면 즉시 해제
-- **이미지 축소**: 큰 내장 이미지는 워커에서 줄여서 디코딩 (`canvasMaxAreaInBytes`)
-- **읽기 한도 후 재열기**: pdf.js는 한 번 읽은 조각을 해제하지 않으므로, 192MB를 읽으면
-  같은 파일을 새 pdf.js 인스턴스로 다시 열고 이전 인스턴스(워커)를 종료함. 화면의 페이지는 그대로 유지
+## Features
+- Opens multi-hundred-MB PDFs without loading them into memory
+- Table of contents sidebar (from the PDF's bookmarks)
+- Remembers the page you were on, per file
+- Zoom: buttons, Ctrl `+` / `-` / `0`, Ctrl+scroll or touchpad pinch
+- Keyboard: ← / → previous / next page, Home / End, type a page number to jump
+- Installable app (PWA), works offline
+- **Opens from the Files app**: after installing, right-click a PDF → *Open with* → Feather PDF
+  (you can also make it the default for PDFs)
+- English and Korean UI (follows the browser language)
 
-## 실행
+## How it stays light
+- **Range reads**: `File.slice()` feeds pdf.js only the 64KB chunks it asks for (`app/file-range-transport.js`)
+- **Virtualized pages**: only the visible pages ±1 have DOM and canvases (`app/viewer.js`)
+- **One render at a time**, nothing renders while you're scrolling fast
+- **Capped canvases**: at most 4M pixels (16MB) per page, freed as soon as the page leaves the screen
+- **Downscaled images**: oversized embedded images are shrunk in the worker (`canvasMaxAreaInBytes`)
+- **Reopen after a read budget**: pdf.js keeps every chunk it has read for the life of the document.
+  After 192MB of reads, Feather opens a fresh pdf.js instance for the same file, keeps the pages on
+  screen, and destroys the old instance and its worker
+
+## Development
 ```sh
-npm install      # pdf.js를 app/vendor로 복사
-npm start        # http://localhost:8080
+npm install      # copies pdf.js into app/vendor
+npm start        # http://localhost:8080  (add ?debug to show live memory stats)
 ```
-설치 없이 정적 파일(`app/`)만 있으면 동작함.
+The app is plain static files in `app/`. Pushing to the default branch deploys it to GitHub Pages
+(`.github/workflows/pages.yml`).
 
-## 벤치마크
-실제 Chromium에서 열고 Chromium 전체 프로세스의 PSS를 측정:
+Tests and benchmarks run in real Chromium through Playwright:
 ```sh
-python3 experiments/01-load-memory/gen.py 1081 big.pdf   # 795MB 테스트 PDF
-npm run bench -- big.pdf range range-nobudget whole      # range:<MB> 로 한도 지정 가능
+python3 experiments/01-load-memory/gen.py 1081 toc.pdf --outline   # 795MB test PDF with bookmarks
+npm test -- toc.pdf                                  # end-to-end feature checks
+npm run bench -- toc.pdf range range-nobudget whole  # peak memory; range:<MB> sets the budget
 ```
 
-795MB·1081쪽, 1366×768 화면. 숫자는 브라우저 자체 사용량(약 276MB) 포함, "최대 / 단계 후":
+## Benchmark
+795MB, 1,081 pages, 1366×768 window. Memory is PSS summed over all Chromium processes and includes
+the browser's own ~276MB. Each cell shows peak / after the step.
 
-| 단계 | range (이 리더) | range, 재열기 없음 | whole (일반 뷰어 방식) |
+| Step | Feather | Feather, no reopen | Whole-file loading (typical viewer) |
 |---|---|---|---|
-| 열기 + 1쪽 | 1.9초 · 468 / 480MB | 2.4초 · 451 / 451MB | 2.3초 · 1,102 / 1,104MB |
-| 540쪽 → 1081쪽 이동 | 0.1초 · 513 / 502MB | 0.1초 · 472 / 472MB | 0.1초 · 1,116 / 1,123MB |
-| 빠른 스크롤 4초 | 502 / 493MB | 517 / 516MB | 1,168 / 1,168MB |
-| 500쪽 연속 넘기기 | 769 / **610MB** (재열기 2회) | 843 / **843MB** | 1,203 / 1,166MB |
+| Open + page 1 | 1.9s · 468 / 480MB | 2.4s · 451 / 451MB | 2.3s · 1,102 / 1,104MB |
+| Jump to 540 → 1081 | 0.1s · 513 / 502MB | 0.1s · 472 / 472MB | 0.1s · 1,116 / 1,123MB |
+| Fast scroll 4s | 502 / 493MB | 517 / 516MB | 1,168 / 1,168MB |
+| Read 500 pages in a row | 769 / **610MB** (2 reopens) | 843 / **843MB** | 1,203 / 1,166MB |
 
-- 재열기가 없으면 읽은 만큼 계속 늘어남(책 전체를 보면 파일 크기까지). 재열기는 이를 한도 근처로 묶음
-- 500쪽 단계의 "최대"는 초당 약 25쪽을 넘기는 극단적인 테스트에서 이미 해제한 캔버스·워커 메모리가
-  늦게 회수되며 생기는 일시적인 값. 한도를 64·96MB로 낮춰도 730~750MB로 비슷함
-- 한도를 너무 낮추면(64MB) 재열기가 40회 일어나 오히려 느려짐. 페이지 트리가 평평한 PDF는 다시 열고
-  N쪽을 찾는 데만 수십 MB를 읽기 때문
+- Without reopening, memory grows with everything read, up to the file size. Reopening keeps it near the budget.
+- The 500-page peak comes from an extreme test that flips about 25 pages per second. Memory from
+  canvases and workers that were already freed gets reclaimed late. Lowering the budget to 64 or 96MB
+  doesn't change it (730–750MB).
+- A budget that is too low (64MB) causes 40 reopens and gets slower. With a flat page tree, finding
+  page N after reopening alone reads tens of MB.
 
-## 알려진 한계
-- **재열기는 임시 방편**: pdf.js의 `ChunkedStream`은 파일 크기만큼 버퍼를 예약하고
-  (`new Uint8Array(length)`) 받은 조각을 계속 보관함. 재열기로 묶었지만, 근본 해결은 조각을 보관하지 않는
-  엔진(PDFium WASM + 동기 파일 읽기)
-- 모든 페이지가 1쪽과 같은 크기라고 가정하고 배치함 (다른 크기의 페이지는 칸 안에 맞춤)
-- 아직 검색, 목차, 텍스트 선택, 확대 기능 없음
+## Known limitations
+- Reopening is a workaround. The real fix is an engine that doesn't keep chunks, such as PDFium
+  (WASM) with synchronous file reads.
+- All pages are laid out at page 1's size. Pages of other sizes are fitted inside that slot.
+- No text search, text selection or in-page links yet.

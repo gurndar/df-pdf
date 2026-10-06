@@ -1,14 +1,17 @@
-# 실험 01 — 파일 전체 로딩 vs 범위(Range) 로딩 메모리 비교
+# Experiment 01: whole-file vs range loading memory
 
-## 배경
-4GB RAM 크롬북(Poin2)에서 약 800MB·1081쪽 디지털 교과서 PDF를 Gallery 앱이나 Chrome으로
-열면 더블클릭 직후 시스템 전체가 멈춤. 가설: 뷰어가 **파일 전체를 메모리에 올리기 때문**.
+## Background
+On a 4GB Chromebook, opening an ~800MB, 1,081-page digital textbook in the Gallery app or Chrome
+freezes the whole system right after the double-click. Hypothesis: the viewers **load the entire
+file into memory**.
 
-## 방법
-- `gen.py`: 795MB, 1081쪽, 페이지마다 압축 불가능한 RGB 이미지(약 735KB)를 넣은 PDF 생성
-- `measure.mjs`: pdf.js(Node)로 1·540·1081쪽을 열고 `getOperatorList`까지 수행(이미지 디코딩 포함), 최대 RSS 측정
-  - `whole`: 파일 전체를 읽어 `getDocument({ data })`
-  - `range`: `PDFDataRangeTransport`로 필요한 64KB 청크만 읽음 (`disableAutoFetch`, `disableStream`)
+## Method
+- `gen.py`: builds a 795MB, 1,081-page PDF with one incompressible RGB image (~735KB) per page
+  (`--outline` adds chapter and section bookmarks)
+- `measure.mjs`: pdf.js in Node opens pages 1, 540 and 1081 and runs `getOperatorList` (which
+  decodes the images), then reports peak RSS
+  - `whole`: reads the whole file and calls `getDocument({ data })`
+  - `range`: `PDFDataRangeTransport` reads only the 64KB chunks requested (`disableAutoFetch`, `disableStream`)
 
 ```sh
 python3 gen.py 1081 big.pdf
@@ -17,18 +20,19 @@ node measure.mjs whole big.pdf
 node measure.mjs range big.pdf
 ```
 
-## 결과 (클라우드 컨테이너, Node 22, pdfjs-dist 4)
+## Results (cloud container, Node 22, pdfjs-dist 4)
 
-|                        | whole    | range   |
-|------------------------|----------|---------|
-| 최대 메모리 (VmHWM)     | 1,610MB  | 324MB   |
-| (Node+pdf.js 기본 84MB 제외) | ~1,530MB | ~240MB  |
-| 문서 열기 시간          | 5~10초   | ~1초    |
-| 디스크 읽은 양          | 795MB    | 73MB    |
+|                                   | whole    | range  |
+|-----------------------------------|----------|--------|
+| Peak memory (VmHWM)               | 1,610MB  | 324MB  |
+| Minus Node + pdf.js baseline (84MB) | ~1,530MB | ~240MB |
+| Time to open                      | 5–10s    | ~1s    |
+| Bytes read from disk              | 795MB    | 73MB   |
 
-## 결론 / 한계
-- 전체 로딩은 파일 크기의 약 2배를 메모리에 올림 → 4GB 기기에서 OOM·zram 스래싱과 일치
-- 범위 로딩은 메모리가 파일 크기와 무관하게 "열린 페이지 수"에 비례
-- 한계: 캔버스 렌더링 비용 미포함, 실제 교과서(JPEG 등) 아님, 크롬북보다 빠른 CPU
-- range 모드에서 73MB를 읽은 이유: 평평한(flat) 페이지 트리에서 N쪽을 찾을 때 pdf.js가 앞쪽
-  페이지 객체를 하나씩 확인하기 때문(요청 1090건 × 64KB). 메모리 영향은 없으나 I/O 최적화 여지 있음
+## Conclusions and caveats
+- Whole-file loading puts about 2× the file size in memory, which matches the OOM and zram
+  thrashing seen on 4GB devices
+- With range loading, memory scales with the pages that are open, not with the file size
+- Caveats: no canvas rendering, not a real textbook (no JPEGs), much faster CPU than a Chromebook
+- Why `range` read 73MB: with a flat page tree, pdf.js checks the earlier page objects one by one to
+  find page N (1,090 requests × 64KB). No memory impact, but room to optimize I/O
