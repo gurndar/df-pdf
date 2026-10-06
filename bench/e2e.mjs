@@ -151,7 +151,8 @@ check("no page errors", errors.length === 0, errors.join(" | "));
 await page.evaluate(() => {
   Blob.prototype.arrayBuffer = () => Promise.reject(new DOMException("gone", "NotReadableError"));
 });
-await page.evaluate(() => window.__reader.viewer.goto(900));
+// Request a range directly: with a small test file every page may already be loaded.
+await page.evaluate(() => window.__reader.transport().requestDataRange(0, 1024));
 await page.waitForFunction(() => document.getElementById("toast").textContent.includes("can't be read"), null, { timeout: 15000 })
   .then(() => check("unreadable file shows an error", true))
   .catch(async () => check("unreadable file shows an error", false, await page.textContent("#toast")));
