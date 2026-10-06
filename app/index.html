@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>가벼운 PDF 리더</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="toolbar">
+    <label class="open-btn">
+      PDF 열기
+      <input id="file" type="file" accept="application/pdf,.pdf" hidden>
+    </label>
+    <span id="name" class="name"></span>
+    <form id="goto" class="goto" hidden>
+      <input id="page" type="number" min="1" inputmode="numeric" aria-label="페이지">
+      <span>/ <span id="total">0</span></span>
+    </form>
+    <span id="stats" class="stats"></span>
+  </header>
+  <main id="viewer" class="viewer" tabindex="0">
+    <div class="empty">
+      <p>PDF 파일을 여기로 끌어다 놓거나 <b>PDF 열기</b>를 누르세요.</p>
+      <p class="hint">파일을 통째로 메모리에 올리지 않아서, 큰 교과서도 4GB 크롬북에서 열 수 있어요.</p>
+    </div>
+  </main>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
