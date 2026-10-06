@@ -8,6 +8,8 @@ fs.mkdirSync(dst, { recursive: true });
 for (const f of ["pdf.min.mjs", "pdf.worker.min.mjs"]) {
   fs.copyFileSync(path.join(pkg, "build", f), path.join(dst, f));
 }
+// pdf.js is Apache-2.0; ship its license next to its files.
+fs.copyFileSync(path.join(pkg, "LICENSE"), path.join(dst, "LICENSE"));
 for (const dir of ["cmaps", "standard_fonts"]) {
   fs.cpSync(path.join(pkg, dir), path.join(dst, dir), { recursive: true });
 }

@@ -71,3 +71,7 @@ the browser's own ~276MB. Each cell shows peak / after the step.
   (WASM) with synchronous file reads.
 - All pages are laid out at page 1's size. Pages of other sizes are fitted inside that slot.
 - No text search, text selection or in-page links yet.
+
+## License
+[MIT](LICENSE). Feather bundles [pdf.js](https://github.com/mozilla/pdf.js) (Apache License 2.0) at
+build time; its files in `app/vendor/` keep their own license.

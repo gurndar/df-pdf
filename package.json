@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Lightweight PDF reader that opens huge PDFs on low-memory Chromebooks",
+  "license": "MIT",
   "scripts": {
     "postinstall": "node scripts/copy-vendor.mjs",
     "start": "node scripts/serve.mjs",
