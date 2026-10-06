@@ -4,17 +4,8 @@
 //   node bench/browser-bench.mjs path/to/big.pdf [range|range-nobudget|range:<MB>|whole ...]
 import fs from "fs";
 import path from "path";
-import { execSync } from "child_process";
 import { serve } from "../scripts/serve.mjs";
-
-async function loadPlaywright() {
-  try {
-    return await import("playwright");
-  } catch {
-    const root = execSync("npm root -g").toString().trim();
-    return await import(path.join(root, "playwright", "index.mjs"));
-  }
-}
+import { chromium, executablePath } from "../scripts/browser.mjs";
 
 function descendants(pid) {
   const children = new Map();
@@ -41,7 +32,7 @@ function pssMB(rootPid) {
 }
 
 async function run(chromium, file, mode, port) {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+  const browser = await chromium.launch({ executablePath });
   // Chromium runs as children of this node process.
   const pid = process.pid;
   const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
@@ -123,7 +114,6 @@ async function run(chromium, file, mode, port) {
 
 const file = path.resolve(process.argv[2] || "big.pdf");
 const modes = process.argv.slice(3).length ? process.argv.slice(3) : ["range", "range-nobudget", "whole"];
-const { chromium } = await loadPlaywright();
 const port = 8099;
 const server = await serve(port);
 console.log(`file: ${file} (${Math.round(fs.statSync(file).size / 1e6)}MB)`);

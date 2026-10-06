@@ -1,12 +1,10 @@
 // Render the SVG icons to the PNG sizes the web app manifest needs.
-//   node scripts/render-icons.mjs   (needs Playwright + Chromium)
+//   npm run icons
 import fs from "fs";
 import path from "path";
-import { execSync } from "child_process";
+import { chromium, executablePath } from "./browser.mjs";
 
-const root = execSync("npm root -g").toString().trim();
-const { chromium } = await import(path.join(root, "playwright", "index.mjs"));
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium" });
+const browser = await chromium.launch({ executablePath });
 const page = await browser.newPage();
 const jobs = [["icon.svg", "icon-192.png", 192], ["icon.svg", "icon-512.png", 512], ["maskable.svg", "maskable-512.png", 512]];
 for (const [src, out, size] of jobs) {

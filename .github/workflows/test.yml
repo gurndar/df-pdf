@@ -1,0 +1,25 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # Same 1,081 pages, bookmarks and links as the real test file, with tiny images.
+      - run: python3 experiments/01-load-memory/gen.py 1081 full.pdf --outline --links --small
+      - run: npm test -- full.pdf

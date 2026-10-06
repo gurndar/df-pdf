@@ -1,0 +1,54 @@
+name: Bug report
+description: Something doesn't work, is slow, or freezes
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a 600MB PDF from the Files app with "Open with → dF"
+        2. Jump to page 400
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: pdf
+    attributes:
+      label: About the PDF
+      description: Please don't attach copyrighted files. Size, page count and source are usually enough.
+      placeholder: "e.g. 810MB, 1,081 pages, publisher's digital textbook (not scanned)"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      placeholder: "e.g. Lenovo 300e, 4GB RAM, ChromeOS 141"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: dF version
+      description: Shown at the bottom of the start screen.
+      placeholder: "dF v0.4.0"
+  - type: dropdown
+    id: how
+    attributes:
+      label: How are you using dF?
+      options:
+        - Installed app
+        - Browser tab
+  - type: textarea
+    id: debug
+    attributes:
+      label: Memory stats (optional)
+      description: Open dF with ?debug at the end of the address, reproduce the problem, and paste the numbers from the top right.

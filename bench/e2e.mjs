@@ -4,16 +4,14 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { execSync } from "child_process";
 import { serve } from "../scripts/serve.mjs";
+import { chromium, executablePath } from "../scripts/browser.mjs";
 
-const root = execSync("npm root -g").toString().trim();
-const { chromium } = await import(path.join(root, "playwright", "index.mjs"));
 const file = path.resolve(process.argv[2] || "full.pdf");
 const shot = process.argv[3];
 const port = 8097;
 const server = await serve(port);
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium" });
+const browser = await chromium.launch({ executablePath });
 
 let failures = 0;
 function check(name, ok, detail = "") {
@@ -54,7 +52,7 @@ check("English UI", (await page.textContent(".open-btn span")) === "Open PDF");
 {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "df-profile-"));
   const persistent = await chromium.launchPersistentContext(dir, {
-    executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium",
+    executablePath,
   });
   const p = persistent.pages()[0] || (await persistent.newPage());
   await p.goto(`http://localhost:${port}/?sw`);

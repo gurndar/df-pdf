@@ -1,21 +1,45 @@
-# dF — Feather and Differentiation PDF
+<p align="center">
+  <img src="app/icons/icon-192.png" width="96" alt="dF icon">
+</p>
 
-<img src="app/icons/icon-192.png" width="72" alt="dF icon" align="right">
+<h1 align="center">dF — Feather and Differentiation PDF</h1>
+
+<p align="center">
+  <b>Open huge PDFs on low-memory Chromebooks without freezing.</b><br>
+  An 800MB, 1,000-page textbook on a 4GB Chromebook? It just opens.
+</p>
+
+<p align="center">
+  <a href="https://gurndar.github.io/df-pdf/"><b>▶ Open dF</b></a> ·
+  <a href="#install-it-and-open-pdfs-from-files">Install</a> ·
+  <a href="#for-school-it-admins">For IT admins</a> ·
+  <a href="CONTRIBUTING.md">Contribute</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/gurndar/df-pdf/actions/workflows/test.yml"><img src="https://github.com/gurndar/df-pdf/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
+</p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-dark.png">
+  <img src="docs/screenshot-light.png" alt="dF showing a textbook page with the table of contents open">
+</picture>
+
+## Why
+On a 4GB Chromebook, opening a big PDF in the Gallery app or Chrome's built-in viewer can lock up the
+whole machine until you hold the power button. Those viewers load the entire file into memory, and an
+800MB textbook needs well over 1GB at once.
+
+dF reads only the parts of the file it needs, right from your disk. Memory stays at a few hundred MB
+no matter how big the PDF is ([how we measured](experiments/01-load-memory/README.md)).
 
 *Feather* because it is light. *Differentiation* because it is different from every other viewer that
 freezes on big files. And *dF* is how you write the differential of F.
 
-dF is a lightweight PDF reader that opens **huge PDFs on low-memory Chromebooks without freezing**,
-like a 1,000-page, 800MB textbook on a 4GB Chromebook.
-
-**Use it now: https://gurndar.github.io/df-pdf/**. Nothing to install, and it works on
-school-managed Chromebooks. Your PDF is read from your own disk and never uploaded anywhere.
-
-## Why
-ChromeOS's Gallery app and Chrome's built-in viewer load the whole PDF into memory. With an 800MB
-file that means 1GB+ at once, and a 4GB Chromebook locks up hard enough to need a forced shutdown.
-dF reads only the parts of the file it needs, so memory stays at a few hundred MB no matter how
-big the PDF is. See [experiments/01-load-memory](experiments/01-load-memory/README.md).
+- 🔒 **Private**: your PDF never leaves your device. No uploads, no accounts, no tracking.
+- 📴 **Works offline** once opened.
+- 🏫 **Works on school-managed Chromebooks**: it's a web page, so nothing needs to be installed.
 
 ## Features
 - Opens multi-hundred-MB PDFs without loading them into memory
@@ -24,10 +48,30 @@ big the PDF is. See [experiments/01-load-memory](experiments/01-load-memory/READ
 - Remembers the page you were on, per file
 - Zoom: buttons, Ctrl `+` / `-` / `0`, Ctrl+scroll or touchpad pinch
 - Keyboard: ← / → previous / next page, Home / End, type a page number to jump
-- Installable app (PWA), works offline
-- **Opens from the Files app**: after installing, right-click a PDF → *Open with* → dF
-  (you can also make it the default for PDFs)
 - English and Korean UI (follows the browser language)
+
+## Install it and open PDFs from Files
+1. Open **https://gurndar.github.io/df-pdf/** in Chrome.
+2. Click the install icon in the address bar (or ⋮ → *Cast, save, and share* → *Install page as app*).
+3. In the **Files** app, right-click any PDF → **Open with** → **dF**. To make dF the default, choose
+   *Change default* in the same menu. After that, double-clicking a PDF opens it in dF.
+
+## For school IT admins
+You can push dF to every managed Chromebook so students get it without doing anything:
+Google Admin console → **Devices → Chrome → Apps & extensions → Users & browsers** → **+ → Add by URL**
+→ `https://gurndar.github.io/df-pdf/`, then set it to **Force install**. It needs no permissions and
+sends no data anywhere. The code is small, dependency-free apart from pdf.js, and open for review.
+
+## FAQ
+**Is my file uploaded?** No. dF is a static page; the PDF is read from your disk by your browser.
+
+**Why not just use the built-in viewer?** For normal PDFs, that's fine. dF is for the big ones that
+freeze your Chromebook.
+
+**Scanned PDFs?** They open and display, but have no text to select (that would need OCR).
+
+**Can I select text in every PDF?** Only PDFs that contain real text. Some print-ready files turn
+letters into shapes, and then no viewer can select them.
 
 ## How it stays light
 - **Range reads**: `File.slice()` feeds pdf.js only the 64KB chunks it asks for (`app/file-range-transport.js`)
@@ -46,15 +90,15 @@ big the PDF is. See [experiments/01-load-memory](experiments/01-load-memory/READ
 npm install      # copies pdf.js into app/vendor
 npm start        # http://localhost:8080  (add ?debug to show live memory stats)
 ```
-The app is plain static files in `app/`. Pushing to the default branch deploys it to GitHub Pages
-(`.github/workflows/pages.yml`).
-
-Tests and benchmarks run in real Chromium through Playwright:
+The app is plain static files in `app/`, with no build step. Merging to `main` deploys it to GitHub
+Pages. Tests run in real Chromium through Playwright, on every pull request too:
 ```sh
-python3 experiments/01-load-memory/gen.py 1081 full.pdf --outline --links   # 795MB test PDF
+python3 experiments/01-load-memory/gen.py 1081 full.pdf --outline --links --small   # fast test PDF
 npm test -- full.pdf                                  # end-to-end feature checks
-npm run bench -- full.pdf range range-nobudget whole  # peak memory; range:<MB> sets the budget
+python3 experiments/01-load-memory/gen.py 1081 big.pdf --outline --links            # 795MB, realistic
+npm run bench -- big.pdf range range-nobudget whole   # peak memory; range:<MB> sets the budget
 ```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the ground rules and project layout.
 
 ## Benchmark
 795MB, 1,081 pages, 1366×768 window. Memory is PSS summed over all Chromium processes and includes

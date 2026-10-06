@@ -2,8 +2,9 @@
 #   python3 gen.py [pages] [out.pdf] [--outline] [--links]
 #     --outline  chapter/section bookmarks (chapters every 100 pages, sections every 25)
 #     --links    a "See page N" internal link on every page, plus a web link on page 1
+#     --small    tiny images (a few MB total) for fast CI runs; same pages, text and links
 import os, zlib, sys
-W, H = 490, 500  # ~735KB raw RGB per page
+W, H = (8, 8) if "--small" in sys.argv else (490, 500)  # ~735KB raw RGB per page by default
 args = [a for a in sys.argv[1:] if not a.startswith("--")]
 PAGES = int(args[0]) if args else 1081
 OUT = args[1] if len(args) > 1 else "big.pdf"
