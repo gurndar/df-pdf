@@ -1,15 +1,20 @@
-# Feather PDF
+# dF — Feather and Differentiation PDF
 
-A lightweight PDF reader that opens **huge PDFs on low-memory Chromebooks without freezing**,
+<img src="app/icons/icon-192.png" width="72" alt="dF icon" align="right">
+
+*Feather* because it is light. *Differentiation* because it is different from every other viewer that
+freezes on big files. And *dF* is how you write the differential of F.
+
+dF is a lightweight PDF reader that opens **huge PDFs on low-memory Chromebooks without freezing**,
 like a 1,000-page, 800MB textbook on a 4GB Chromebook.
 
-**Use it now: https://gurndar.github.io/chromebookPDFReader/**. Nothing to install, and it works on
+**Use it now: https://gurndar.github.io/df-pdf/**. Nothing to install, and it works on
 school-managed Chromebooks. Your PDF is read from your own disk and never uploaded anywhere.
 
 ## Why
 ChromeOS's Gallery app and Chrome's built-in viewer load the whole PDF into memory. With an 800MB
 file that means 1GB+ at once, and a 4GB Chromebook locks up hard enough to need a forced shutdown.
-Feather reads only the parts of the file it needs, so memory stays at a few hundred MB no matter how
+dF reads only the parts of the file it needs, so memory stays at a few hundred MB no matter how
 big the PDF is. See [experiments/01-load-memory](experiments/01-load-memory/README.md).
 
 ## Features
@@ -19,7 +24,7 @@ big the PDF is. See [experiments/01-load-memory](experiments/01-load-memory/READ
 - Zoom: buttons, Ctrl `+` / `-` / `0`, Ctrl+scroll or touchpad pinch
 - Keyboard: ← / → previous / next page, Home / End, type a page number to jump
 - Installable app (PWA), works offline
-- **Opens from the Files app**: after installing, right-click a PDF → *Open with* → Feather PDF
+- **Opens from the Files app**: after installing, right-click a PDF → *Open with* → dF
   (you can also make it the default for PDFs)
 - English and Korean UI (follows the browser language)
 
@@ -30,7 +35,7 @@ big the PDF is. See [experiments/01-load-memory](experiments/01-load-memory/READ
 - **Capped canvases**: at most 4M pixels (16MB) per page, freed as soon as the page leaves the screen
 - **Downscaled images**: oversized embedded images are shrunk in the worker (`canvasMaxAreaInBytes`)
 - **Reopen after a read budget**: pdf.js keeps every chunk it has read for the life of the document.
-  After 192MB of reads, Feather opens a fresh pdf.js instance for the same file, keeps the pages on
+  After 192MB of reads, dF opens a fresh pdf.js instance for the same file, keeps the pages on
   screen, and destroys the old instance and its worker
 
 ## Development
@@ -52,7 +57,7 @@ npm run bench -- toc.pdf range range-nobudget whole  # peak memory; range:<MB> s
 795MB, 1,081 pages, 1366×768 window. Memory is PSS summed over all Chromium processes and includes
 the browser's own ~276MB. Each cell shows peak / after the step.
 
-| Step | Feather | Feather, no reopen | Whole-file loading (typical viewer) |
+| Step | dF | dF, no reopen | Whole-file loading (typical viewer) |
 |---|---|---|---|
 | Open + page 1 | 1.9s · 468 / 480MB | 2.4s · 451 / 451MB | 2.3s · 1,102 / 1,104MB |
 | Jump to 540 → 1081 | 0.1s · 513 / 502MB | 0.1s · 472 / 472MB | 0.1s · 1,116 / 1,123MB |
@@ -73,5 +78,5 @@ the browser's own ~276MB. Each cell shows peak / after the step.
 - No text search, text selection or in-page links yet.
 
 ## License
-[MIT](LICENSE). Feather bundles [pdf.js](https://github.com/mozilla/pdf.js) (Apache License 2.0) at
+[MIT](LICENSE). dF bundles [pdf.js](https://github.com/mozilla/pdf.js) (Apache License 2.0) at
 build time; its files in `app/vendor/` keep their own license.

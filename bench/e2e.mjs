@@ -33,7 +33,7 @@ check("English UI", (await page.textContent(".open-btn span")) === "Open PDF");
 
 // Manifest & installability (Chromium's own checks). Needs a non-incognito profile.
 {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "feather-profile-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "df-profile-"));
   const persistent = await chromium.launchPersistentContext(dir, {
     executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium",
   });
@@ -100,6 +100,18 @@ check("resumes last page", Math.abs(resumed - 552) <= 1, `page ${resumed}`);
 check("resume toast", (await page.textContent("#toast")).includes("Resumed"));
 check("no page errors", errors.length === 0, errors.join(" | "));
 await ctx.close();
+
+// State saved under the old "Feather PDF" name is migrated.
+{
+  const c = await browser.newContext();
+  const p = await c.newPage();
+  await p.goto(`http://localhost:${port}/`);
+  await p.evaluate(() => localStorage.setItem("feather:tocOpen", "false"));
+  await p.reload();
+  const migrated = await p.evaluate(() => [localStorage.getItem("df:tocOpen"), localStorage.getItem("feather:tocOpen")]);
+  check("migrates old storage keys", migrated[0] === "false" && migrated[1] === null, JSON.stringify(migrated));
+  await c.close();
+}
 
 // Korean locale.
 const ko = await browser.newContext({ locale: "ko-KR" });

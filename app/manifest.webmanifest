@@ -1,6 +1,6 @@
 {
-  "name": "Feather PDF",
-  "short_name": "Feather PDF",
+  "name": "Feather and Differentiation PDF",
+  "short_name": "dF",
   "description": "Open huge PDFs on low-memory Chromebooks without freezing.",
   "id": "./",
   "start_url": "./",

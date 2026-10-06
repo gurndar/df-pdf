@@ -55,7 +55,7 @@ async function open(file) {
   currentFile = file;
   recycleCount = 0;
   $("name").textContent = file.name;
-  document.title = `${file.name} – Feather PDF`;
+  document.title = `${file.name} – dF`;
   resetOutline();
 
   const loaded = await load(file);
@@ -230,8 +230,18 @@ function showError(err) {
 
 // ---- Persistence (best effort; storage can be unavailable) ----
 
-const POSITIONS_KEY = "feather:positions";
+const POSITIONS_KEY = "df:positions";
 const MAX_POSITIONS = 100;
+// The app used to be called "Feather PDF"; carry its saved state over once.
+try {
+  for (const key of Object.keys(localStorage)) {
+    if (!key.startsWith("feather:")) continue;
+    const renamed = `df:${key.slice("feather:".length)}`;
+    if (localStorage.getItem(renamed) === null) localStorage.setItem(renamed, localStorage.getItem(key));
+    localStorage.removeItem(key);
+  }
+} catch {}
+
 const fileKey = (f) => `${f.name}|${f.size}|${f.lastModified}`;
 
 function readJSON(key, fallback) {
@@ -265,8 +275,8 @@ function savePosition(file, pos) {
   }, 500);
 }
 
-const readPref = (name, fallback) => readJSON(`feather:${name}`, fallback);
-const writePref = (name, value) => writeJSON(`feather:${name}`, value);
+const readPref = (name, fallback) => readJSON(`df:${name}`, fallback);
+const writePref = (name, value) => writeJSON(`df:${name}`, value);
 
 // ---- Misc ----
 

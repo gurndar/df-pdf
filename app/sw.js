@@ -1,6 +1,6 @@
 // Offline support: serve the app from cache, refresh the cache in the background.
 // PDFs never go through here; they are read straight from the user's disk.
-const CACHE = "feather-v1";
+const CACHE = "df-v1";
 const SHELL = [
   "./",
   "index.html",
