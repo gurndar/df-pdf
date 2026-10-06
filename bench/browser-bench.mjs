@@ -1,7 +1,7 @@
 // Opens a PDF in the reader inside real Chromium and records peak memory
 // (PSS summed over every Chromium process spawned by this script) for "range" vs "whole" loading.
 //
-//   node bench/browser-bench.mjs path/to/big.pdf [range|whole ...]
+//   node bench/browser-bench.mjs path/to/big.pdf [range|range-nobudget|range:<MB>|whole ...]
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
@@ -48,7 +48,9 @@ async function run(chromium, file, mode, port) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("crash", () => errors.push("RENDERER CRASHED"));
-  await page.goto(`http://localhost:${port}/?mode=${mode}`);
+  const query = { range: "", "range-nobudget": "budget=0", whole: "mode=whole" }[mode]
+    ?? mode.replace(/^range:(\d+)$/, "budget=$1"); // e.g. range:96
+  await page.goto(`http://localhost:${port}/?${query}`);
   const idle = pssMB(pid);
 
   let peak = 0;
@@ -102,24 +104,32 @@ async function run(chromium, file, mode, port) {
       }
       await settle();
     });
+    await step("read 500 pages", async () => {
+      for (let n = 200; n < 700; n++) {
+        await page.evaluate((n) => window.__reader.viewer.goto(n), n);
+        await rendered(n);
+      }
+      await settle();
+    });
   } catch (e) {
     errors.push(e.message.split("\n")[0]);
   }
   clearInterval(sampler);
   const read = await page.evaluate(() => window.__reader.transport()?.bytesRead ?? null).catch(() => null);
+  const recycles = await page.evaluate(() => window.__reader.recycles()).catch(() => null);
   await browser.close();
-  return { mode, idleMB: Math.round(idle), steps, readMB: read && Math.round(read / 1048576), errors };
+  return { mode, idleMB: Math.round(idle), steps, readMB: read && Math.round(read / 1048576), recycles, errors };
 }
 
 const file = path.resolve(process.argv[2] || "big.pdf");
-const modes = process.argv.slice(3).length ? process.argv.slice(3) : ["range", "whole"];
+const modes = process.argv.slice(3).length ? process.argv.slice(3) : ["range", "range-nobudget", "whole"];
 const { chromium } = await loadPlaywright();
 const port = 8099;
 const server = await serve(port);
 console.log(`file: ${file} (${Math.round(fs.statSync(file).size / 1e6)}MB)`);
 for (const mode of modes) {
   const r = await run(chromium, file, mode, port);
-  console.log(`\n== ${r.mode} (browser idle ${r.idleMB}MB${r.readMB != null ? `, read ${r.readMB}MB` : ""})`);
+  console.log(`\n== ${r.mode} (browser idle ${r.idleMB}MB${r.readMB != null ? `, read since last open ${r.readMB}MB, reopened ${r.recycles}x` : ""})`);
   for (const s of r.steps) console.log(`  ${s.name.padEnd(22)} ${String(s.ms).padStart(6)}ms  peak ${s.peakMB}MB  after ${s.nowMB}MB`);
   if (r.errors.length) console.log("  errors:", r.errors.join(" | "));
 }

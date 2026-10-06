@@ -13,13 +13,14 @@ const SCROLL_IDLE_MS = 120;
 export const MAX_CANVAS_PIXELS = 4 * 1024 * 1024; // 16MB of RGBA per page
 
 export class Viewer {
-  constructor(container, doc, { onPageChange } = {}) {
+  constructor(container, doc, { onPageChange, onIdle } = {}) {
     this.container = container;
     this.doc = doc;
     this.onPageChange = onPageChange;
+    this.onIdle = onIdle;
     this.slots = new Map(); // pageNum -> { el, canvas, task, rendered }
     this.queue = [];
-    this.rendering = false;
+    this.rendering = null; // promise of the running pump, if any
     this.releasedSinceCleanup = 0;
     this.currentPage = 1;
 
@@ -131,23 +132,39 @@ export class Viewer {
     this.releasedSinceCleanup++;
   }
 
-  async pump() {
-    if (this.rendering) return;
-    this.rendering = true;
-    try {
-      while (this.queue.length) {
-        const n = this.queue.shift();
-        const slot = this.slots.get(n);
-        if (!slot || slot.rendered) continue;
-        await this.renderPage(n, slot);
-      }
-      if (this.releasedSinceCleanup > 20) {
-        this.releasedSinceCleanup = 0;
-        await this.doc.cleanup(true).catch(() => {});
-      }
-    } finally {
-      this.rendering = false;
+  pump() {
+    this.rendering ??= this.drain()
+      .catch((e) => console.error(e))
+      .finally(() => {
+        this.rendering = null;
+        this.onIdle?.();
+      });
+    return this.rendering;
+  }
+
+  async drain() {
+    while (this.queue.length) {
+      const n = this.queue.shift();
+      const slot = this.slots.get(n);
+      if (!slot || slot.rendered) continue;
+      await this.renderPage(n, slot);
     }
+    if (this.releasedSinceCleanup > 20) {
+      this.releasedSinceCleanup = 0;
+      await this.doc.cleanup(true).catch(() => {});
+    }
+  }
+
+  // Replace the document (same file, fresh pdf.js instance) without touching
+  // canvases already on screen. The old instance and its worker are destroyed,
+  // which frees every chunk it had read.
+  async swapDocument(doc) {
+    while (this.rendering) await this.rendering;
+    const old = this.doc;
+    this.doc = doc;
+    this.releasedSinceCleanup = 0;
+    await old.destroy();
+    this.update();
   }
 
   async renderPage(n, slot) {
