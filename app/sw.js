@@ -1,6 +1,9 @@
-// Offline support: serve the app from cache, refresh the cache in the background.
+// Offline support. App code is network-first, so a new release shows up on the
+// next launch while online; the cache is only used when the network is down.
+// pdf.js files are big and only change with the version, so they are cache-first.
 // PDFs never go through here; they are read straight from the user's disk.
-const CACHE = "df-v2";
+const VERSION = new URL(location.href).searchParams.get("v") || "dev";
+const CACHE = `df-${VERSION}`;
 const SHELL = [
   "./",
   "index.html",
@@ -17,9 +20,14 @@ const SHELL = [
   "vendor/pdf.min.mjs",
   "vendor/pdf.worker.min.mjs",
 ];
+const NETWORK_TIMEOUT_MS = 4000;
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(CACHE)
+      .then((c) => c.addAll(SHELL.map((url) => new Request(url, { cache: "reload" }))))
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener("activate", (e) => {
@@ -30,24 +38,39 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-// Stale-while-revalidate for same-origin GETs (cmaps and fonts get cached on first use).
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== location.origin) return;
-  e.respondWith(
-    caches.open(CACHE).then(async (cache) => {
-      const cached = await cache.match(e.request, { ignoreSearch: true });
-      const fresh = fetch(e.request)
-        .then((res) => {
-          if (res.ok) cache.put(e.request, res.clone());
-          return res;
-        })
-        .catch(() => cached);
-      if (cached) {
-        e.waitUntil(fresh);
-        return cached;
-      }
-      return fresh;
-    }),
-  );
+  const vendor = url.pathname.includes("/vendor/");
+  e.respondWith(vendor ? cacheFirst(e.request) : networkFirst(e.request));
 });
+
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE);
+  const cached = await cache.match(request, { ignoreSearch: true });
+  if (cached) return cached;
+  const res = await fetch(request);
+  if (res.ok) cache.put(request, res.clone());
+  return res;
+}
+
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE);
+  try {
+    // no-cache: revalidate with the server instead of trusting the HTTP cache.
+    const res = await withTimeout(fetch(request.url, { cache: "no-cache" }), NETWORK_TIMEOUT_MS);
+    if (res.ok) cache.put(request, res.clone());
+    return res;
+  } catch {
+    const cached = await cache.match(request, { ignoreSearch: true });
+    if (cached) return cached;
+    throw new Error(`offline and not cached: ${request.url}`);
+  }
+}
+
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    promise.then(resolve, reject).finally(() => clearTimeout(timer));
+  });
+}

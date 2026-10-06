@@ -12,6 +12,7 @@ const strings = {
     emptyHint: "Opens huge PDFs without loading the whole file into memory, so even 4GB Chromebooks don't freeze. Your file never leaves this device.",
     installHint: "Tip: install this app, then right-click any PDF in Files → Open with → this app.",
     cantOpen: "Can't open this file",
+    cantRead: "The file can't be read anymore. Was it moved or is the drive disconnected? Open it again.",
     resumed: (n) => `Resumed at page ${n}`,
   },
   ko: {
@@ -26,6 +27,7 @@ const strings = {
     emptyHint: "파일을 통째로 메모리에 올리지 않아서, 큰 PDF도 4GB 크롬북에서 멈추지 않고 열려요. 파일은 이 기기 밖으로 나가지 않아요.",
     installHint: "팁: 이 앱을 설치한 뒤 파일 앱에서 PDF를 우클릭 → 연결 프로그램 → 이 앱을 고르세요.",
     cantOpen: "열 수 없어요",
+    cantRead: "파일을 더 이상 읽을 수 없어요. 파일을 옮겼거나 드라이브가 분리됐나요? 다시 열어 주세요.",
     resumed: (n) => `${n}쪽부터 이어서 읽어요`,
   },
 };

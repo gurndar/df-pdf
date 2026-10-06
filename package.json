@@ -1,6 +1,6 @@
 {
   "name": "df-pdf",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "dF (Feather and Differentiation PDF): opens huge PDFs on low-memory Chromebooks",

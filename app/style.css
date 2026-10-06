@@ -182,6 +182,7 @@ body {
 .linkLayer a:hover { background: color-mix(in srgb, var(--accent), transparent 85%); }
 .empty { max-width: 480px; margin: 20vh auto; padding: 0 16px; text-align: center; }
 .hint { color: var(--muted); }
+.version { color: var(--muted); font-size: 12px; margin-top: 32px; }
 @media (max-width: 700px) {
   .stats, .name { display: none; }
   .toolbar { gap: 8px; padding: 8px; }

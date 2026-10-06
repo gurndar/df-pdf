@@ -16,7 +16,11 @@ const mode = params.get("mode") === "whole" ? "whole" : "range";
 // the document is reopened from scratch. ?budget=0 disables it (for benchmarks).
 const READ_BUDGET = (params.has("budget") ? Number(params.get("budget")) : 192) * 1024 * 1024;
 const DEBUG = params.has("debug");
+// Bump on every release: it names the offline cache, and shows on the start screen.
+const VERSION = "0.4.0";
 const ZOOM_STEP = 1.2;
+
+$("version").textContent = `dF v${VERSION}`;
 
 let viewer = null;
 let transport = null;
@@ -37,7 +41,11 @@ async function load(file) {
     const doc = await getDocument({ ...common, data: new Uint8Array(await file.arrayBuffer()) }).promise;
     return { doc, transport: null };
   }
-  const range = new FileRangeTransport(file);
+  const range = new FileRangeTransport(file, {
+    onReadError: (err) => {
+      if (file === currentFile) showError(new Error(`${t.cantRead} (${err.name})`));
+    },
+  });
   const doc = await getDocument({
     ...common,
     range,
@@ -233,6 +241,7 @@ if ("launchQueue" in window) {
 function showError(err) {
   console.error(err);
   $("name").textContent = `${t.cantOpen}: ${err.message}`;
+  toast(err.message, 8000); // the name is hidden on narrow screens
 }
 
 // ---- Persistence (best effort; storage can be unavailable) ----
@@ -288,11 +297,11 @@ const writePref = (name, value) => writeJSON(`df:${name}`, value);
 // ---- Misc ----
 
 let toastTimer = null;
-function toast(text) {
+function toast(text, ms = 2500) {
   $("toast").textContent = text;
   $("toast").hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => ($("toast").hidden = true), 2500);
+  toastTimer = setTimeout(() => ($("toast").hidden = true), ms);
 }
 
 // Live memory readout for testing on real devices: add ?debug to the URL.
@@ -315,7 +324,7 @@ if (DEBUG) {
 // development always serves fresh files.
 const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
 if ("serviceWorker" in navigator && (!isLocal || params.has("sw"))) {
-  navigator.serviceWorker.register("./sw.js").catch((e) => console.warn("sw", e));
+  navigator.serviceWorker.register(`./sw.js?v=${VERSION}`).catch((e) => console.warn("sw", e));
 }
 
 window.__reader = { mode, open, viewer: null, transport: () => transport, recycles: () => recycleCount };

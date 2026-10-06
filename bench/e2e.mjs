@@ -25,7 +25,26 @@ const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 }, l
 const page = await ctx.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
-const rendered = (n) => page.waitForFunction((n) => window.__reader.viewer?.slots.get(n)?.rendered, n, { timeout: 30000 });
+const logs = [];
+page.on("console", (m) => logs.push(`${m.type()}: ${m.text()}`));
+// On timeout, print the viewer's state so a hang can be diagnosed.
+const rendered = (n) =>
+  page.waitForFunction((n) => window.__reader.viewer?.slots.get(n)?.rendered, n, { timeout: 30000 }).catch(async (e) => {
+    const state = await page.evaluate(() => {
+      const v = window.__reader.viewer;
+      return {
+        name: document.getElementById("name").textContent,
+        viewer: !!v,
+        slots: v && [...v.slots.entries()].map(([k, s]) => `${k}:${s.rendered ? "r" : "-"}`),
+        queue: v?.queue,
+        rendering: !!v?.rendering,
+        read: window.__reader.transport()?.bytesRead,
+        swControlled: !!navigator.serviceWorker.controller,
+      };
+    }).catch((err) => `state unavailable: ${err.message}`);
+    console.log(`waiting for page ${n} to render timed out`, JSON.stringify(state), logs.slice(-10));
+    throw e;
+  });
 const current = () => page.evaluate(() => window.__reader.viewer.currentPage);
 
 await page.goto(`http://localhost:${port}/?sw`);
@@ -46,6 +65,12 @@ check("English UI", (await page.textContent(".open-btn span")) === "Open PDF");
   const install = await cdp.send("Page.getInstallabilityErrors");
   check("installable", install.installabilityErrors.length === 0,
     install.installabilityErrors.map((e) => e.errorId).join(", "));
+  const version = await p.textContent("#version");
+  check("shows app version", /^dF v\d+\.\d+\.\d+$/.test(version), version);
+  await persistent.setOffline(true);
+  await p.reload();
+  check("works offline from the cache", (await p.textContent("#version")) === version);
+  await persistent.setOffline(false);
   await persistent.close();
   fs.rmSync(dir, { recursive: true, force: true });
 }
@@ -123,6 +148,15 @@ const resumed = await current();
 check("resumes last page", Math.abs(resumed - 552) <= 1, `page ${resumed}`);
 check("resume toast", (await page.textContent("#toast")).includes("Resumed"));
 check("no page errors", errors.length === 0, errors.join(" | "));
+
+// A file that can no longer be read (moved, drive removed) shows an error instead of hanging.
+await page.evaluate(() => {
+  Blob.prototype.arrayBuffer = () => Promise.reject(new DOMException("gone", "NotReadableError"));
+});
+await page.evaluate(() => window.__reader.viewer.goto(900));
+await page.waitForFunction(() => document.getElementById("toast").textContent.includes("can't be read"), null, { timeout: 15000 })
+  .then(() => check("unreadable file shows an error", true))
+  .catch(async () => check("unreadable file shows an error", false, await page.textContent("#toast")));
 await ctx.close();
 
 // State saved under the old "Feather PDF" name is migrated.

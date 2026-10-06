@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, claude/zealous-knuth-e4am0l]
+    branches: [main]
     paths: [app/**, package.json, package-lock.json, scripts/**, .github/workflows/pages.yml]
   workflow_dispatch:
 
