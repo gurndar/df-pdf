@@ -1,6 +1,6 @@
 // End-to-end checks in real Chromium.
 //   node bench/e2e.mjs path/to/with-outline.pdf [screenshot.png]
-// The PDF should come from: python3 experiments/01-load-memory/gen.py 1081 toc.pdf --outline
+// The PDF should come from: python3 experiments/01-load-memory/gen.py 1081 full.pdf --outline --links
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -9,7 +9,7 @@ import { serve } from "../scripts/serve.mjs";
 
 const root = execSync("npm root -g").toString().trim();
 const { chromium } = await import(path.join(root, "playwright", "index.mjs"));
-const file = path.resolve(process.argv[2] || "toc.pdf");
+const file = path.resolve(process.argv[2] || "full.pdf");
 const shot = process.argv[3];
 const port = 8097;
 const server = await serve(port);
@@ -50,9 +50,33 @@ check("English UI", (await page.textContent(".open-btn span")) === "Open PDF");
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
-// Open + table of contents.
+// Open, then text selection and links on page 1.
 await page.setInputFiles("#file", file);
 await rendered(1);
+const layersReady = (n) => page.waitForFunction((n) => window.__reader.viewer?.slots.get(n)?.layersReady, n, { timeout: 30000 });
+await layersReady(1);
+const p1 = '.page[data-page="1"]';
+const spans = await page.$$eval(`${p1} .textLayer span`, (els) => els.map((e) => e.textContent));
+check("text layer has the page text", spans.includes("Page 1") && spans.includes("See page 101"), JSON.stringify(spans));
+
+const box = await page.locator(`${p1} .textLayer span`, { hasText: /^Page 1$/ }).boundingBox();
+await page.mouse.move(box.x + 1, box.y + box.height / 2);
+await page.mouse.down();
+await page.mouse.move(box.x + box.width - 1, box.y + box.height / 2, { steps: 5 });
+await page.mouse.up();
+const selected = await page.evaluate(() => window.getSelection().toString());
+check("dragging selects text", selected.includes("Page"), JSON.stringify(selected));
+
+const external = await page.$eval(`${p1} .linkLayer a[target="_blank"]`, (a) => [a.href, a.rel]);
+check("web link opens safely in a new tab", external[0] === "https://example.com/" && external[1].includes("noopener"), external.join(" "));
+await page.click(`${p1} .linkLayer a[href="#"]`);
+await rendered(101);
+check("internal link jumps to its page", (await current()) === 101, `page ${await current()}`);
+await layersReady(101);
+const layerPages = await page.$$eval(".textLayer", (els) => els.map((e) => e.closest(".page").dataset.page));
+check("layers only for on-screen pages", !layerPages.includes("1") && layerPages.length <= 3, layerPages.join(","));
+
+// Table of contents.
 await page.waitForSelector("#toc:not([hidden]) .toc-item");
 const chapters = await page.$$eval("#toc-list > li", (els) => els.length);
 check("TOC shows chapters", chapters === 11, `${chapters} top-level entries`);

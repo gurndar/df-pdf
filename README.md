@@ -20,6 +20,7 @@ big the PDF is. See [experiments/01-load-memory](experiments/01-load-memory/READ
 ## Features
 - Opens multi-hundred-MB PDFs without loading them into memory
 - Table of contents sidebar (from the PDF's bookmarks)
+- Select and copy text; click links inside the PDF (jump to a page, or open a website in a new tab)
 - Remembers the page you were on, per file
 - Zoom: buttons, Ctrl `+` / `-` / `0`, Ctrl+scroll or touchpad pinch
 - Keyboard: ← / → previous / next page, Home / End, type a page number to jump
@@ -30,7 +31,9 @@ big the PDF is. See [experiments/01-load-memory](experiments/01-load-memory/READ
 
 ## How it stays light
 - **Range reads**: `File.slice()` feeds pdf.js only the 64KB chunks it asks for (`app/file-range-transport.js`)
-- **Virtualized pages**: only the visible pages ±1 have DOM and canvases (`app/viewer.js`)
+- **Virtualized pages**: only the visible pages ±1 have DOM and canvases (`app/viewer.js`), and only
+  those pages get a text layer and link layer (`app/page-layers.js`). The picture is drawn first and the
+  overlays are added after it
 - **One render at a time**, nothing renders while you're scrolling fast
 - **Capped canvases**: at most 4M pixels (16MB) per page, freed as soon as the page leaves the screen
 - **Downscaled images**: oversized embedded images are shrunk in the worker (`canvasMaxAreaInBytes`)
@@ -48,9 +51,9 @@ The app is plain static files in `app/`. Pushing to the default branch deploys i
 
 Tests and benchmarks run in real Chromium through Playwright:
 ```sh
-python3 experiments/01-load-memory/gen.py 1081 toc.pdf --outline   # 795MB test PDF with bookmarks
-npm test -- toc.pdf                                  # end-to-end feature checks
-npm run bench -- toc.pdf range range-nobudget whole  # peak memory; range:<MB> sets the budget
+python3 experiments/01-load-memory/gen.py 1081 full.pdf --outline --links   # 795MB test PDF
+npm test -- full.pdf                                  # end-to-end feature checks
+npm run bench -- full.pdf range range-nobudget whole  # peak memory; range:<MB> sets the budget
 ```
 
 ## Benchmark
@@ -75,7 +78,12 @@ the browser's own ~276MB. Each cell shows peak / after the step.
 - Reopening is a workaround. The real fix is an engine that doesn't keep chunks, such as PDFium
   (WASM) with synchronous file reads.
 - All pages are laid out at page 1's size. Pages of other sizes are fitted inside that slot.
-- No text search, text selection or in-page links yet.
+- Text and link layers add a little work per page. On a dense page (1,277 separately placed words) the
+  text and link layers took 56ms after a 44ms canvas render on a fast desktop CPU, so expect several
+  times that on a Chromebook. Memory impact in the benchmark was within noise.
+- Links use their own small overlay, not pdf.js's full annotation layer, so form fields and other
+  interactive annotations are not supported.
+- No text search yet. Searching all pages means reading the whole file, which needs a memory-aware design.
 
 ## License
 [MIT](LICENSE). dF bundles [pdf.js](https://github.com/mozilla/pdf.js) (Apache License 2.0) at

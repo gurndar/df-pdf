@@ -1,6 +1,6 @@
 // Offline support: serve the app from cache, refresh the cache in the background.
 // PDFs never go through here; they are read straight from the user's disk.
-const CACHE = "df-v1";
+const CACHE = "df-v2";
 const SHELL = [
   "./",
   "index.html",
@@ -8,6 +8,7 @@ const SHELL = [
   "main.js",
   "viewer.js",
   "outline.js",
+  "page-layers.js",
   "i18n.js",
   "file-range-transport.js",
   "manifest.webmanifest",

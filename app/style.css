@@ -136,7 +136,50 @@ body {
   color: var(--muted);
   font-size: 20px;
 }
-.page canvas { position: relative; display: block; }
+.page-content { position: relative; }
+.page-content canvas { display: block; }
+
+/* Transparent text over the canvas so it can be selected and copied. */
+.textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: CanvasText;
+  z-index: 0;
+}
+.textLayer :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+/* Text sits above the end-of-content marker, which grows to cover the layer while selecting. */
+.textLayer > :not(.markedContent),
+.textLayer .markedContent span:not(.markedContent) { z-index: 1; }
+.textLayer span.markedContent { top: 0; height: 0; }
+.textLayer span[role="img"] { user-select: none; cursor: default; }
+.textLayer ::selection { background: color-mix(in srgb, AccentColor, transparent 70%); }
+.textLayer br::selection { background: transparent; }
+.textLayer .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  user-select: none;
+  cursor: default;
+}
+.textLayer.selecting .endOfContent { top: 0; }
+
+/* Clickable areas for links inside the PDF. */
+.linkLayer { position: absolute; inset: 0; pointer-events: none; }
+.linkLayer a { position: absolute; pointer-events: auto; border-radius: 2px; }
+.linkLayer a:hover { background: color-mix(in srgb, var(--accent), transparent 85%); }
 .empty { max-width: 480px; margin: 20vh auto; padding: 0 16px; text-align: center; }
 .hint { color: var(--muted); }
 @media (max-width: 700px) {

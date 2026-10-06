@@ -73,6 +73,11 @@ async function open(file) {
       savePosition(file, { page: n, zoom: viewer.zoom });
     },
     onIdle: () => maybeRecycle().catch(showError),
+    nav: {
+      goToDest: (dest) => goToDest(dest).catch((e) => console.warn("link", e)),
+      goToPage: (n) => viewer.goto(Math.min(n, viewer.doc.numPages)),
+      currentPage: () => viewer.currentPage,
+    },
   });
   window.__reader.viewer = viewer;
   if (saved?.zoom) viewer.zoom = saved.zoom;
@@ -112,6 +117,11 @@ function resetOutline() {
   $("toc-btn").hidden = true;
 }
 
+async function goToDest(dest) {
+  const page = await resolveDest(() => viewer.doc, dest);
+  if (page) viewer.goto(page);
+}
+
 async function showOutline(doc) {
   const file = currentFile;
   const items = await loadOutline(doc);
@@ -122,12 +132,9 @@ async function showOutline(doc) {
       return;
     }
     if (!item.dest || !viewer) return;
-    const page = await resolveDest(() => viewer.doc, item.dest);
-    if (page) {
-      viewer.goto(page);
-      if (matchMedia("(max-width: 700px)").matches) setTocOpen(false);
-      viewerEl.focus();
-    }
+    await goToDest(item.dest);
+    if (matchMedia("(max-width: 700px)").matches) setTocOpen(false);
+    viewerEl.focus();
   });
   $("toc-empty").hidden = items.length > 0;
   $("toc-btn").hidden = false;

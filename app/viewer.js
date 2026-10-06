@@ -5,7 +5,9 @@
 //  - at most one page renders at a time, and nothing renders while scrolling
 //  - canvases are capped at MAX_CANVAS_PIXELS; pages are released as soon as
 //    they leave the window (canvas zeroed, pdf.js page caches cleaned up)
+//  - text and link layers exist only for those same on-screen pages
 import { RenderingCancelledException } from "./vendor/pdf.min.mjs";
+import { buildLinkLayer, buildTextLayer } from "./page-layers.js";
 
 const GAP = 12;
 const OVERSCAN = 1;
@@ -16,12 +18,14 @@ export const MAX_ZOOM = 3;
 export const MAX_CANVAS_PIXELS = 4 * 1024 * 1024; // 16MB of RGBA per page
 
 export class Viewer {
-  constructor(container, doc, { onPageChange, onIdle } = {}) {
+  // nav: { goToDest(dest), goToPage(n), currentPage() } for links inside the PDF
+  constructor(container, doc, { onPageChange, onIdle, nav } = {}) {
     this.container = container;
     this.doc = doc;
     this.onPageChange = onPageChange;
     this.onIdle = onIdle;
-    this.slots = new Map(); // pageNum -> { el, canvas, task, rendered }
+    this.nav = nav;
+    this.slots = new Map(); // pageNum -> { el, canvas, task, textLayer, rendered, layersReady }
     this.queue = [];
     this.rendering = null; // promise of the running pump, if any
     this.releasedSinceCleanup = 0;
@@ -35,6 +39,15 @@ export class Viewer {
     this.onScroll = this.onScroll.bind(this);
     container.addEventListener("scroll", this.onScroll, { passive: true });
     this.resizeObserver = new ResizeObserver(() => this.layout());
+
+    // While dragging a selection, stretch the text layer's end marker so the
+    // selection doesn't jump to the end of the page (same trick as pdf.js).
+    this.onMouseDown = (e) => e.target.closest?.(".textLayer")?.classList.add("selecting");
+    this.onMouseUp = () => {
+      for (const el of container.querySelectorAll(".textLayer.selecting")) el.classList.remove("selecting");
+    };
+    container.addEventListener("mousedown", this.onMouseDown);
+    document.addEventListener("mouseup", this.onMouseUp);
   }
 
   async init() {
@@ -150,6 +163,7 @@ export class Viewer {
     const slot = this.slots.get(n);
     if (!slot) return;
     slot.task?.cancel();
+    slot.textLayer?.cancel();
     if (slot.canvas) {
       // Zeroing the size frees the backing store immediately.
       slot.canvas.width = slot.canvas.height = 0;
@@ -222,9 +236,24 @@ export class Viewer {
       }
       slot.canvas = canvas;
       slot.rendered = true;
-      slot.el.append(canvas);
+      const content = document.createElement("div");
+      content.className = "page-content";
+      content.style.width = `${cssW}px`;
+      content.style.height = `${cssH}px`;
+      content.append(canvas);
+      slot.el.append(content);
+
+      // Picture first, then the (cheap) text and link overlays.
+      const cssViewport = page.getViewport({ scale: cssScale });
+      const text = await buildTextLayer(page, cssViewport, content);
+      slot.textLayer = text.layer;
+      await Promise.all([text.done, this.nav && buildLinkLayer(page, cssViewport, content, this.nav)]);
+      slot.textLayer = null;
+      slot.layersReady = true;
     } catch (e) {
-      if (!(e instanceof RenderingCancelledException)) console.error(`page ${n}`, e);
+      if (!(e instanceof RenderingCancelledException) && e?.name !== "AbortException") {
+        console.error(`page ${n}`, e);
+      }
     } finally {
       page.cleanup();
     }
@@ -242,6 +271,8 @@ export class Viewer {
     clearTimeout(this.idleTimer);
     this.resizeObserver.disconnect();
     this.container.removeEventListener("scroll", this.onScroll);
+    this.container.removeEventListener("mousedown", this.onMouseDown);
+    document.removeEventListener("mouseup", this.onMouseUp);
     for (const n of [...this.slots.keys()]) this.release(n);
     await this.doc.destroy();
   }
